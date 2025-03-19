@@ -27,12 +27,12 @@ Additionally, a Raspberry Pi Camera will continuously monitor the welcome mat. I
 ### Blynk
 - Notify the user in case of package theft and provide a link to the recorded video.
 
-### Miscelanous
+### Miscellaneous
 The project will primarily use Python for both the Raspberry Pi logic and Azure Functions.
 
 
 ## Project Repository
-TODO: Create a repository for your project. You can add this proposal to it!
+https://github.com/BernH4/package_theft_warning_system
 
 
 ## Open Questions:
