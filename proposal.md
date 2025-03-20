@@ -26,7 +26,8 @@ Additionally, a Raspberry Pi Camera will continuously monitor the welcome mat. I
 
 ### Blynk
 - Notify the user in case of package theft and provide a link to the recorded video.
-EDIT: After presentation on Thursday, maybe an alternative would be better suited to send text messages, for example Telegram API.
+- 
+EDIT: Maybe an alternative would be better suited to send text messages, for example Telegram API.
 
 ### Miscellaneous
 The project will primarily use Python for both the Raspberry Pi logic and Azure Functions.
