@@ -21,11 +21,12 @@ Additionally, a Raspberry Pi Camera will continuously monitor the welcome mat. I
 - Notify the user via Blynk when an event occurs.
 
 ### Azure Databases
-    Use a time-series database to store piezo sensor data.
-    Use Azure Blob Storage to store recorded video footage.
+- Use a time-series database to store piezo sensor data.
+- Use Azure Blob Storage to store recorded video footage.
 
 ### Blynk
 - Notify the user in case of package theft and provide a link to the recorded video.
+EDIT: After presentation on Thursday, maybe an alternative would be better suited to send text messages, for example Telegram API.
 
 ### Miscellaneous
 The project will primarily use Python for both the Raspberry Pi logic and Azure Functions.
