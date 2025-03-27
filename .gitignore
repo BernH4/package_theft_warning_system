@@ -1,4 +1,5 @@
 # Ignore video files
 *.h264
 *.mp4
+credentials.json
 
