@@ -2,7 +2,8 @@ import time
 import subprocess
 import RPi.GPIO as GPIO
 from picamera import PiCamera
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContentSettings, BlobSasPermissions, generate_blob_sas
+from datetime import datetime, timedelta
 import json
 
 def setup_gpio(button_pin):
@@ -17,25 +18,29 @@ def initialize_camera():
     camera.rotation = 0
     return camera
 
-def record_video(camera, duration=5, filename='video.h264'):
-    """Record a video using the PiCamera."""
-    print("Button Pressed! Recording video for {} seconds...".format(duration))
+def record_video(camera, duration=3):
+    """Record a video using the PiCamera with a unique filename."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"video_{timestamp}.h264"
+    print(f"Button Pressed! Recording video for {duration} seconds...")
     camera.start_recording(filename)
     time.sleep(duration)
     camera.stop_recording()
-    print("Recording stopped. Video saved as '{}'".format(filename))
+    print(f"Recording stopped. Video saved as '{filename}'")
     return filename
 
-def convert_video(input_file='video.h264', output_file='video.mp4'):
-    """Convert the recorded .h264 video to .mp4 format using ffmpeg with reduced verbosity."""
+def convert_video(input_file):
+    """Convert the recorded .h264 video to .mp4 format using ffmpeg."""
+    output_file = input_file.replace(".h264", ".mp4")
     result = subprocess.run(
-        ['ffmpeg', '-y', '-loglevel', 'warning', '-i', input_file, '-c:v', 'copy', output_file], 
+        ['ffmpeg', '-y', '-loglevel', 'warning', '-i', input_file, '-c:v', 'copy', '-movflags', 'faststart', output_file], 
         stderr=subprocess.PIPE
     )
     if result.returncode != 0:
         print("FFmpeg error:", result.stderr.decode())
     else:
-        print("Conversion complete. Video saved as '{}'".format(output_file))
+        print(f"Conversion complete. Video saved as '{output_file}'")
+    return output_file
 
 def load_credentials(filename='credentials.json'):
     """Load storage credentials from a JSON file."""
@@ -43,15 +48,34 @@ def load_credentials(filename='credentials.json'):
         return json.load(file)
 
 def upload_to_blob_storage(video_filename, credentials):
-    """Upload video to Azure Blob Storage and return its URL."""
+    """Upload video to Azure Blob Storage and generate a SAS URL valid for 1 day."""
     blob_service_client = BlobServiceClient.from_connection_string(credentials["AZURE_STORAGE_CONNECTION_STRING"])
     container_client = blob_service_client.get_container_client(credentials["CONTAINER_NAME"])
     
+    # Upload the file with metadata
     with open(video_filename, "rb") as data:
         blob_client = container_client.get_blob_client(video_filename)
-        blob_client.upload_blob(data, overwrite=True)
+        blob_client.upload_blob(
+        data, 
+        overwrite=True, 
+        content_settings=ContentSettings(content_type="video/mp4")
+        )
+
+        # blob_client.upload_blob(data, overwrite=True, content_settings={'content_type': 'video/mp4'})
     
-    blob_url = f"{credentials['BLOB_BASE_URL']}/{credentials['CONTAINER_NAME']}/{video_filename}"
+    # Generate a SAS token valid for 1 day
+    sas_token = generate_blob_sas(
+        account_name=blob_service_client.account_name,
+        container_name=credentials["CONTAINER_NAME"],
+        blob_name=video_filename,
+        account_key=blob_service_client.credential.account_key,
+        permission=BlobSasPermissions(read=True),  # Read-only access
+        expiry=datetime.utcnow() + timedelta(days=1)  # Expire in 1 day
+    )
+
+    # Create the full SAS URL
+    blob_url = f"{credentials['BLOB_BASE_URL']}/{credentials['CONTAINER_NAME']}/{video_filename}?{sas_token}"
+    
     print(f"Video uploaded successfully. Accessible at: {blob_url}")
     return blob_url
 
@@ -68,8 +92,8 @@ def main():
         #while True:
         #    if GPIO.input(BUTTON_PIN) == GPIO.LOW:
         video_file = record_video(camera)
-        convert_video(video_file)
-        video_url = upload_to_blob_storage("video.mp4", credentials)
+        converted_file = convert_video(video_file)
+        video_url = upload_to_blob_storage(converted_file, credentials)
         print(f"Video available at: {video_url}")
         time.sleep(0.2)  # Debounce delay
     finally:
