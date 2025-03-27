@@ -1,0 +1,4 @@
+# Ignore video files
+*.h264
+*.mp4
+
