@@ -3,6 +3,7 @@ import subprocess
 import RPi.GPIO as GPIO
 from picamera import PiCamera
 from azure.storage.blob import BlobServiceClient, ContentSettings, BlobSasPermissions, generate_blob_sas
+from azure.iot.device import IoTHubDeviceClient, Message, MethodResponse
 from datetime import datetime, timedelta
 import json
 
@@ -15,7 +16,7 @@ def initialize_camera():
     """Initialize and configure the camera."""
     camera = PiCamera()
     camera.resolution = (640, 480)
-    camera.rotation = 0
+    camera.rotation = 180
     return camera
 
 def record_video(camera, duration=3):
@@ -79,6 +80,18 @@ def upload_to_blob_storage(video_filename, credentials):
     print(f"Video uploaded successfully. Accessible at: {blob_url}")
     return blob_url
 
+def send_message_to_iot_hub(credentials, video_url):
+    device_client = IoTHubDeviceClient.create_from_connection_string(credentials['IOT_HUB_CONNECTION_STRING'])
+    device_client.connect()
+
+    event_data = {
+        "telegram_user_id": credentials["USER_ID"],
+        "video_url": video_url 
+    }
+
+    message = Message(json.dumps(event_data))
+    device_client.send_message(message)
+
 def main():
     BUTTON_PIN = 19  # Adjust as necessary
     setup_gpio(BUTTON_PIN)
@@ -91,10 +104,13 @@ def main():
     try:
         #while True:
         #    if GPIO.input(BUTTON_PIN) == GPIO.LOW:
-        video_file = record_video(camera)
-        converted_file = convert_video(video_file)
-        video_url = upload_to_blob_storage(converted_file, credentials)
+        # video_file = record_video(camera)
+        # converted_file = convert_video(video_file)
+        # video_url = upload_to_blob_storage(converted_file, credentials)
+        video_url = "https://packagetheftbst.blob.core.windows.net/packagetheftcontainerbst/video_20250331_201748.mp4?se=2025-04-01T19%3A17%3A52Z&sp=r&sv=2025-05-05&sr=b&sig=M41xYdK7VCu5wNWiwmLVR22pZTflmyKw00A8l8j5k1o%3D"
         print(f"Video available at: {video_url}")
+        send_message_to_iot_hub(credentials, video_url)
+
         time.sleep(0.2)  # Debounce delay
     finally:
         GPIO.cleanup()
